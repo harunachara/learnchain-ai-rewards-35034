@@ -524,6 +524,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_quiz_reward: {
+        Args: {
+          p_quiz_id: string
+          p_quiz_title: string
+          p_reward_amount: number
+          p_user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "student" | "teacher" | "admin"

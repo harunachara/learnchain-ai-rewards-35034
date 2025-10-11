@@ -109,34 +109,19 @@ const Quiz = () => {
       if (submissionError) throw submissionError;
 
       if (passed) {
-        const { data: wallet } = await supabase
-          .from("wallets")
-          .select("id")
-          .eq("user_id", user.id)
-          .single();
+        // Use secure database function to process reward
+        const { error: rewardError } = await supabase.rpc('process_quiz_reward', {
+          p_user_id: user.id,
+          p_quiz_id: quizId!,
+          p_reward_amount: quiz.reward_amount,
+          p_quiz_title: quiz.title
+        });
 
-        if (wallet) {
-          const { data: currentWallet } = await supabase
-            .from("wallets")
-            .select("balance")
-            .eq("id", wallet.id)
-            .single();
-
-          if (currentWallet) {
-            await supabase.from("transactions").insert({
-              wallet_id: wallet.id,
-              amount: quiz.reward_amount,
-              type: "reward",
-              metadata: { quiz_id: quizId, quiz_title: quiz.title },
-            });
-
-            await supabase
-              .from("wallets")
-              .update({ balance: currentWallet.balance + quiz.reward_amount })
-              .eq("id", wallet.id);
-
-            toast.success(`Congratulations! You earned ${quiz.reward_amount} LearnChain Token (LCT)!`);
-          }
+        if (rewardError) {
+          console.error('Reward error:', rewardError);
+          toast.error('Quiz passed but reward failed. Please contact support.');
+        } else {
+          toast.success(`Congratulations! You earned ${quiz.reward_amount} LearnChain Token (LCT)!`);
         }
       } else {
         toast.error(`You scored ${percentage.toFixed(0)}%. You need ${quiz.passing_score}% to pass.`);
