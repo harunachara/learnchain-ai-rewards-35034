@@ -32,10 +32,17 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    // Privileged client for server-side inserts (bypasses RLS where needed)
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -129,7 +136,7 @@ Format your response as JSON:
     const materialsContent = JSON.parse(materialsData.choices[0].message.content);
 
     // Insert personalized course material
-    const { error: materialError } = await supabase
+    const { error: materialError } = await admin
       .from("course_materials")
       .insert({
         course_id: courseId,
@@ -186,7 +193,7 @@ Format your response as JSON:
           const quizContent = JSON.parse(quizData.choices[0].message.content);
 
           // Create quiz
-          const { data: quiz, error: quizError } = await supabase
+          const { data: quiz, error: quizError } = await admin
             .from("quizzes")
             .insert({
               course_id: courseId,
@@ -209,7 +216,7 @@ Format your response as JSON:
               points: q.points
             }));
 
-            await supabase.from("quiz_questions").insert(questions);
+            await admin.from("quiz_questions").insert(questions);
           }
         }
       }
