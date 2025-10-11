@@ -101,7 +101,7 @@ const Quiz = () => {
         .insert({
           user_id: user.id,
           quiz_id: quizId!,
-          score: percentage,
+          score: Math.round(percentage),
           answers: answers,
           passed,
         });
