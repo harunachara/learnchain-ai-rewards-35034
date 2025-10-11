@@ -145,7 +145,7 @@ const Wallet = () => {
               </div>
               <div className="p-4 bg-background/50 rounded-lg border border-border">
                 <p className="text-xs text-muted-foreground mb-1">Network</p>
-                <p className="text-sm font-semibold">Solana Network</p>
+                <p className="text-sm font-semibold">Bitcoin-Lightening Network</p>
                 <p className="text-xs text-accent">✓ LearnChain Token (LCT)</p>
               </div>
             </div>
