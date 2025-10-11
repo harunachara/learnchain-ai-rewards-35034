@@ -19,6 +19,7 @@ const CourseDetail = () => {
   const [course, setCourse] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [showHobbyDialog, setShowHobbyDialog] = useState(false);
@@ -77,6 +78,13 @@ const CourseDetail = () => {
         .eq("course_id", courseId)
         .order("chapter_order", { ascending: true });
       setChapters(chaptersData || []);
+
+      // Fetch all quizzes for the quizzes tab
+      const { data: quizzesData } = await supabase
+        .from("quizzes")
+        .select("*, chapters(title)")
+        .eq("course_id", courseId);
+      setQuizzes(quizzesData || []);
 
     } catch (error) {
       toast.error("Failed to load course data");
@@ -227,9 +235,10 @@ const CourseDetail = () => {
 
         {isEnrolled && (
           <Tabs defaultValue="materials" className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
+            <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-8">
               <TabsTrigger value="materials">Handouts</TabsTrigger>
               <TabsTrigger value="chapters">Chapters</TabsTrigger>
+              <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
               <TabsTrigger value="project">Project</TabsTrigger>
             </TabsList>
 
@@ -321,6 +330,64 @@ const CourseDetail = () => {
                                 </AccordionContent>
                               </AccordionItem>
                             </Accordion>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Quizzes */}
+            <TabsContent value="quizzes">
+              <Card className="shadow-elegant">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-6 h-6 text-primary" />
+                    AI-Generated Quizzes
+                  </CardTitle>
+                  <CardDescription>
+                    Personalized quizzes based on your hobby to test your knowledge
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {quizzes.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No quizzes available yet
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {quizzes.map((quiz) => (
+                        <Card key={quiz.id} className="border-2 border-muted hover:border-primary/50 transition-all">
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <div>
+                                <span className="text-lg">{quiz.title}</span>
+                                {quiz.chapters && (
+                                  <p className="text-sm text-muted-foreground font-normal mt-1">
+                                    Related to: {quiz.chapters.title}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                onClick={() => navigate(`/quiz/${quiz.id}`)}
+                                className="gap-2"
+                              >
+                                <Sparkles className="w-4 h-4" />
+                                Start Quiz
+                              </Button>
+                            </CardTitle>
+                            {quiz.description && (
+                              <CardDescription>{quiz.description}</CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span>Passing Score: {quiz.passing_score}%</span>
+                              <span>•</span>
+                              <span>Reward: {quiz.reward_amount} tokens</span>
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
