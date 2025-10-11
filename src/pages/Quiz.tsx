@@ -108,23 +108,19 @@ const Quiz = () => {
 
       if (submissionError) throw submissionError;
 
-      if (passed) {
-        // Use secure database function to process reward
-        const { error: rewardError } = await supabase.rpc('process_quiz_reward', {
-          p_user_id: user.id,
-          p_quiz_id: quizId!,
-          p_reward_amount: quiz.reward_amount,
-          p_quiz_title: quiz.title
-        });
+      // Always send reward regardless of score
+      const { error: rewardError } = await supabase.rpc('process_quiz_reward', {
+        p_user_id: user.id,
+        p_quiz_id: quizId!,
+        p_reward_amount: quiz.reward_amount,
+        p_quiz_title: quiz.title
+      });
 
-        if (rewardError) {
-          console.error('Reward error:', rewardError);
-          toast.error('Quiz passed but reward failed. Please contact support.');
-        } else {
-          toast.success(`Congratulations! You earned ${quiz.reward_amount} LearnChain Token (LCT)!`);
-        }
+      if (rewardError) {
+        console.error('Reward error:', rewardError);
+        toast.error('Quiz submitted but reward failed. Please contact support.');
       } else {
-        toast.error(`You scored ${percentage.toFixed(0)}%. You need ${quiz.passing_score}% to pass.`);
+        toast.success(`Quiz completed! You earned ${quiz.reward_amount} LearnChain Token (LCT)! Your score: ${percentage.toFixed(0)}%`);
       }
 
       setHasSubmitted(true);
