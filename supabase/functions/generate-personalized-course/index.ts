@@ -158,11 +158,11 @@ Chapter: ${chapter.title}
 Description: ${chapter.description}
 Course: ${course.title}
 
-Create 5 engaging quiz questions that test understanding of the chapter while relating to the student's hobby "${hobby}". Make questions practical and scenario-based when possible.
+Create 6-7 engaging multiple-choice quiz questions that test understanding of the chapter while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.
 
 Format your response as JSON:
 {
-  "quiz_title": "Quiz title",
+  "quiz_title": "Quiz title (include chapter name and make it engaging)",
   "questions": [
     {
       "question": "Question text (relate to ${hobby} when possible)",

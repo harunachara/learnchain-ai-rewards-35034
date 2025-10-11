@@ -206,12 +206,19 @@ const Quiz = () => {
 
           <div className="space-y-6">
             {questions.map((question, index) => (
-              <Card key={question.id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Question {index + 1}
+              <Card key={question.id} className="shadow-elegant border-2 hover:border-primary/30 transition-all">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                      Question {index + 1} of {questions.length}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {question.points} points
+                    </span>
+                  </div>
+                  <CardTitle className="text-lg leading-relaxed">
+                    {question.question}
                   </CardTitle>
-                  <CardDescription>{question.question}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <RadioGroup
@@ -219,16 +226,25 @@ const Quiz = () => {
                     onValueChange={(value) =>
                       setAnswers({ ...answers, [question.id]: parseInt(value) })
                     }
+                    className="space-y-3"
                   >
                     {question.options.map((option: string, optIndex: number) => (
-                      <div key={optIndex} className="flex items-center space-x-2">
+                      <div 
+                        key={optIndex} 
+                        className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all cursor-pointer hover:bg-accent/5 ${
+                          answers[question.id] === optIndex 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-muted'
+                        }`}
+                      >
                         <RadioGroupItem
                           value={optIndex.toString()}
                           id={`${question.id}-${optIndex}`}
+                          className="mt-0"
                         />
                         <Label
                           htmlFor={`${question.id}-${optIndex}`}
-                          className="cursor-pointer"
+                          className="cursor-pointer flex-1 text-sm leading-relaxed"
                         >
                           {option}
                         </Label>
