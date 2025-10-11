@@ -149,8 +149,9 @@ Format your response as JSON:
       console.error("Error inserting course material:", materialError);
     }
 
-    // Generate personalized quizzes for each chapter
+    // Generate personalized quizzes
     if (chapters && chapters.length > 0) {
+      // Generate quiz for each chapter
       for (const chapter of chapters) {
         const quizPrompt = `You are an expert educator. Create a personalized quiz for a student interested in "${hobby}".
 
@@ -192,7 +193,6 @@ Format your response as JSON:
           const quizData = await quizResponse.json();
           const quizContent = JSON.parse(quizData.choices[0].message.content);
 
-          // Create quiz
           const { data: quiz, error: quizError } = await admin
             .from("quizzes")
             .insert({
@@ -207,7 +207,6 @@ Format your response as JSON:
             .single();
 
           if (quiz && !quizError) {
-            // Insert quiz questions
             const questions = quizContent.questions.map((q: any) => ({
               quiz_id: quiz.id,
               question: q.question,
@@ -218,6 +217,72 @@ Format your response as JSON:
 
             await admin.from("quiz_questions").insert(questions);
           }
+        }
+      }
+    } else {
+      // No chapters - generate a general course quiz
+      const generalQuizPrompt = `You are an expert educator. Create a personalized quiz for a student interested in "${hobby}".
+
+Course: ${course.title}
+Description: ${course.description}
+
+Create 6-7 engaging multiple-choice quiz questions that test understanding of the course content while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.
+
+Format your response as JSON:
+{
+  "quiz_title": "Quiz title (make it engaging and relate to ${hobby})",
+  "questions": [
+    {
+      "question": "Question text (relate to ${hobby} when possible)",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": 0,
+      "points": 10
+    }
+  ]
+}`;
+
+      const generalQuizResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "user", content: generalQuizPrompt }
+          ],
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      if (generalQuizResponse.ok) {
+        const quizData = await generalQuizResponse.json();
+        const quizContent = JSON.parse(quizData.choices[0].message.content);
+
+        const { data: quiz, error: quizError } = await admin
+          .from("quizzes")
+          .insert({
+            course_id: courseId,
+            chapter_id: null,
+            title: quizContent.quiz_title,
+            description: `Personalized quiz for ${hobby} enthusiasts`,
+            passing_score: 70,
+            reward_amount: 5
+          })
+          .select()
+          .single();
+
+        if (quiz && !quizError) {
+          const questions = quizContent.questions.map((q: any) => ({
+            quiz_id: quiz.id,
+            question: q.question,
+            options: q.options,
+            correct_answer: q.correct_answer,
+            points: q.points
+          }));
+
+          await admin.from("quiz_questions").insert(questions);
         }
       }
     }
