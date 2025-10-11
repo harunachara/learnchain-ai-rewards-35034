@@ -65,7 +65,7 @@ serve(async (req) => {
     }
 
     // Fetch existing chapters
-    const { data: chapters } = await supabase
+    let { data: chapters } = await supabase
       .from("chapters")
       .select("*")
       .eq("course_id", courseId)
@@ -77,6 +77,63 @@ serve(async (req) => {
         JSON.stringify({ error: "AI service not configured" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
+    }
+
+    // If no chapters exist, generate them with AI
+    if (!chapters || chapters.length === 0) {
+      const chaptersPrompt = `You are an expert curriculum designer. Create 3-4 chapters for a course personalized for someone interested in "${hobby}".
+
+Course: ${course.title}
+Description: ${course.description}
+
+Create engaging chapter titles and descriptions that connect the course content to the student's hobby "${hobby}". Make it practical and progressive.
+
+Format your response as JSON:
+{
+  "chapters": [
+    {
+      "title": "Chapter title (relate to ${hobby})",
+      "description": "Brief description of what will be covered",
+      "content": "Detailed chapter content in markdown format (2-3 paragraphs)"
+    }
+  ]
+}`;
+
+      const chaptersResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "user", content: chaptersPrompt }
+          ],
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      if (chaptersResponse.ok) {
+        const chaptersData = await chaptersResponse.json();
+        const chaptersContent = JSON.parse(chaptersData.choices[0].message.content);
+
+        // Insert chapters
+        const chaptersToInsert = chaptersContent.chapters.map((ch: any, index: number) => ({
+          course_id: courseId,
+          title: ch.title,
+          description: ch.description,
+          content: ch.content,
+          chapter_order: index + 1
+        }));
+
+        const { data: insertedChapters } = await admin
+          .from("chapters")
+          .insert(chaptersToInsert)
+          .select();
+
+        chapters = insertedChapters || [];
+      }
     }
 
     // Generate personalized course materials
