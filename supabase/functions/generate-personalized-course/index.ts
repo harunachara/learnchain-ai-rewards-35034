@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { courseId, hobby } = await req.json();
+    const { courseId, hobby, language = "english" } = await req.json();
     
     if (!courseId || !hobby) {
       return new Response(
@@ -20,6 +20,10 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
+
+    const languageInstruction = language !== "english" 
+      ? `\n\nIMPORTANT: Generate ALL content in ${language.charAt(0).toUpperCase() + language.slice(1)} language. All text, questions, answers, and descriptions must be in ${language.charAt(0).toUpperCase() + language.slice(1)}.`
+      : "";
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -86,7 +90,7 @@ serve(async (req) => {
 Course: ${course.title}
 Description: ${course.description}
 
-Create engaging chapter titles and descriptions that connect the course content to the student's hobby "${hobby}". Make it practical and progressive.
+Create engaging chapter titles and descriptions that connect the course content to the student's hobby "${hobby}". Make it practical and progressive.${languageInstruction}
 
 Format your response as JSON:
 {
@@ -142,7 +146,7 @@ Format your response as JSON:
 Course: ${course.title}
 Description: ${course.description}
 
-Create engaging, personalized course introduction materials that connect the course content to the student's hobby "${hobby}". Make it practical and relatable.
+Create engaging, personalized course introduction materials that connect the course content to the student's hobby "${hobby}". Make it practical and relatable.${languageInstruction}
 
 Format your response as JSON:
 {
@@ -216,7 +220,7 @@ Chapter: ${chapter.title}
 Description: ${chapter.description}
 Course: ${course.title}
 
-Create 6-7 engaging multiple-choice quiz questions that test understanding of the chapter while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.
+Create 6-7 engaging multiple-choice quiz questions that test understanding of the chapter while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.${languageInstruction}
 
 Format your response as JSON:
 {
@@ -283,7 +287,7 @@ Format your response as JSON:
 Course: ${course.title}
 Description: ${course.description}
 
-Create 6-7 engaging multiple-choice quiz questions that test understanding of the course content while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.
+Create 6-7 engaging multiple-choice quiz questions that test understanding of the course content while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.${languageInstruction}
 
 Format your response as JSON:
 {

@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { BookOpen, FileText, CheckCircle2, Sparkles, Rocket } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ const CourseDetail = () => {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [showHobbyDialog, setShowHobbyDialog] = useState(false);
   const [hobby, setHobby] = useState("");
+  const [language, setLanguage] = useState("english");
   const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
@@ -111,7 +113,7 @@ const CourseDetail = () => {
     setEnrolling(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-personalized-course", {
-        body: { courseId, hobby: hobby.trim() }
+        body: { courseId, hobby: hobby.trim(), language }
       });
 
       if (error) throw error;
@@ -124,6 +126,7 @@ const CourseDetail = () => {
       setIsEnrolled(true);
       setShowHobbyDialog(false);
       setHobby("");
+      setLanguage("english");
       
       // Refresh data
       await fetchCourseData();
@@ -201,19 +204,45 @@ const CourseDetail = () => {
                 Tell us about your hobby or interest! Our AI will generate personalized course materials, notes, and quizzes tailored just for you.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="hobby">Your Hobby or Interest</Label>
-              <Input
-                id="hobby"
-                placeholder="e.g., Photography, Gaming, Music, Cooking, Sports..."
-                value={hobby}
-                onChange={(e) => setHobby(e.target.value)}
-                className="mt-2"
-                onKeyDown={(e) => e.key === 'Enter' && handleEnrollWithHobby()}
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                This helps us create engaging, personalized content that relates to what you love!
-              </p>
+            <div className="py-4 space-y-6">
+              <div>
+                <Label htmlFor="hobby">Your Hobby or Interest</Label>
+                <Input
+                  id="hobby"
+                  placeholder="e.g., Photography, Gaming, Music, Cooking, Sports..."
+                  value={hobby}
+                  onChange={(e) => setHobby(e.target.value)}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  This helps us create engaging, personalized content that relates to what you love!
+                </p>
+              </div>
+
+              <div>
+                <Label>Preferred Language</Label>
+                <RadioGroup value={language} onValueChange={setLanguage} className="mt-3 space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="english" id="english" />
+                    <Label htmlFor="english" className="font-normal cursor-pointer">English</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="hausa" id="hausa" />
+                    <Label htmlFor="hausa" className="font-normal cursor-pointer">Hausa</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="igbo" id="igbo" />
+                    <Label htmlFor="igbo" className="font-normal cursor-pointer">Igbo</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="yoruba" id="yoruba" />
+                    <Label htmlFor="yoruba" className="font-normal cursor-pointer">Yoruba</Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Course content will be generated in your selected language
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowHobbyDialog(false)} disabled={enrolling}>
