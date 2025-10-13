@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { GraduationCap, Sparkles, Trophy, Wallet } from "lucide-react";
+import { GraduationCap, Sparkles, Trophy, Wallet, Languages } from "lucide-react";
 import heroImage from "@/assets/hero-education.jpg";
 
 const Index = () => {
@@ -30,7 +30,7 @@ const Index = () => {
             
             <p className="text-xl text-muted-foreground">
               Transform your education with personalized AI mentoring and blockchain-based rewards. 
-              Complete projects, earn tokens, and unlock your potential.
+              Learn in English, Hausa, Igbo, or Yoruba. Complete projects, earn tokens, and unlock your potential.
             </p>
             
             <div className="flex gap-4">
@@ -74,7 +74,7 @@ const Index = () => {
           <p className="text-muted-foreground text-lg">Everything you need for personalized, rewarding education</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="p-6 rounded-xl bg-card border border-border shadow-elegant hover:shadow-glow transition-all">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-4">
               <Sparkles className="w-6 h-6 text-white" />
@@ -102,6 +102,16 @@ const Index = () => {
             <h3 className="text-xl font-bold mb-2">Verified Achievement</h3>
             <p className="text-muted-foreground">
               Teacher-verified projects with immutable proof. Build a portfolio that matters.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-xl bg-card border border-border shadow-elegant hover:shadow-glow transition-all">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4">
+              <Languages className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Multi-Language Support</h3>
+            <p className="text-muted-foreground">
+              Learn in your preferred language: English, Hausa, Igbo, or Yoruba. Education without barriers!
             </p>
           </div>
         </div>
