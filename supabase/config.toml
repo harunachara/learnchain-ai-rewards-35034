@@ -1,1 +1,13 @@
 project_id = "vklzgfcpnjkgpeegnors"
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.generate-personalized-course]
+verify_jwt = true
+
+[functions.generate-projects]
+verify_jwt = true
+
+[functions.verify-project]
+verify_jwt = true
