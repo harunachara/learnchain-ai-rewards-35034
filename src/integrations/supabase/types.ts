@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_type: string
+          created_at: string | null
+          description: string | null
+          earned_at: string | null
+          icon: string | null
+          id: string
+          metadata: Json | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          achievement_type: string
+          created_at?: string | null
+          description?: string | null
+          earned_at?: string | null
+          icon?: string | null
+          id?: string
+          metadata?: Json | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          achievement_type?: string
+          created_at?: string | null
+          description?: string | null
+          earned_at?: string | null
+          icon?: string | null
+          id?: string
+          metadata?: Json | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_chat_messages: {
+        Row: {
+          content: string
+          course_id: string | null
+          created_at: string | null
+          id: string
+          language: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_chat_messages_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           chapter_order: number
@@ -109,18 +183,24 @@ export type Database = {
           course_id: string
           enrolled_at: string | null
           id: string
+          last_activity_at: string | null
+          progress_percentage: number | null
           user_id: string
         }
         Insert: {
           course_id: string
           enrolled_at?: string | null
           id?: string
+          last_activity_at?: string | null
+          progress_percentage?: number | null
           user_id: string
         }
         Update: {
           course_id?: string
           enrolled_at?: string | null
           id?: string
+          last_activity_at?: string | null
+          progress_percentage?: number | null
           user_id?: string
         }
         Relationships: [
@@ -144,28 +224,37 @@ export type Database = {
         Row: {
           age: number | null
           created_at: string | null
+          current_streak: number | null
           email: string
           full_name: string
           guardian_consent: boolean | null
           id: string
+          last_active_date: string | null
+          longest_streak: number | null
           updated_at: string | null
         }
         Insert: {
           age?: number | null
           created_at?: string | null
+          current_streak?: number | null
           email: string
           full_name: string
           guardian_consent?: boolean | null
           id: string
+          last_active_date?: string | null
+          longest_streak?: number | null
           updated_at?: string | null
         }
         Update: {
           age?: number | null
           created_at?: string | null
+          current_streak?: number | null
           email?: string
           full_name?: string
           guardian_consent?: boolean | null
           id?: string
+          last_active_date?: string | null
+          longest_streak?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -284,7 +373,9 @@ export type Database = {
       quiz_submissions: {
         Row: {
           answers: Json
+          difficulty_level: string | null
           id: string
+          needs_help: boolean | null
           passed: boolean
           quiz_id: string
           reward_issued: boolean
@@ -294,7 +385,9 @@ export type Database = {
         }
         Insert: {
           answers: Json
+          difficulty_level?: string | null
           id?: string
+          needs_help?: boolean | null
           passed: boolean
           quiz_id: string
           reward_issued?: boolean
@@ -304,7 +397,9 @@ export type Database = {
         }
         Update: {
           answers?: Json
+          difficulty_level?: string | null
           id?: string
+          needs_help?: boolean | null
           passed?: boolean
           quiz_id?: string
           reward_issued?: boolean
@@ -517,6 +612,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_achievements: {
+        Args: { _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
