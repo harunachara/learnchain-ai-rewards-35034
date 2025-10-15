@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { BookOpen, FileText, CheckCircle2, Sparkles, Rocket } from "lucide-react";
 import { toast } from "sonner";
+import { FloatingAIChatWidget } from "@/components/FloatingAIChatWidget";
 
 const CourseDetail = () => {
   const { courseId } = useParams();
@@ -469,6 +470,8 @@ const CourseDetail = () => {
           </Card>
         )}
       </div>
+      
+      {isEnrolled && <FloatingAIChatWidget courseId={courseId} language={language} />}
       
       <Footer />
     </div>
