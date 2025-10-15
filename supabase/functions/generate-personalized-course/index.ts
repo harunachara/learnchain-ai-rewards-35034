@@ -140,7 +140,7 @@ Format your response as JSON:
       }
     }
 
-    // Generate personalized course materials
+    // Define materials prompt for later use
     const materialsPrompt = `You are an expert educational content creator. Generate personalized course handout/notes for a student interested in "${hobby}".
 
 Course: ${course.title}
@@ -154,67 +154,61 @@ Format your response as JSON:
   "content": "Comprehensive markdown content that includes:\n- Introduction connecting the course to their hobby\n- Key learning objectives\n- Real-world applications related to their hobby\n- Fun facts and motivational content"
 }`;
 
-    const materialsResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "user", content: materialsPrompt }
-        ],
-        response_format: { type: "json_object" }
-      }),
-    });
+    // Enroll the user immediately
+    const { error: enrollError } = await supabase
+      .from("enrollments")
+      .insert({
+        user_id: user.id,
+        course_id: courseId
+      });
 
-    if (!materialsResponse.ok) {
-      const errorText = await materialsResponse.text();
-      console.error("AI materials generation error:", materialsResponse.status, errorText);
-      
-      if (materialsResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
-        );
-      }
-      
-      if (materialsResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please contact support." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 402 }
-        );
-      }
-
+    if (enrollError) {
+      console.error("Enrollment error:", enrollError);
       return new Response(
-        JSON.stringify({ error: "Failed to generate course materials" }),
+        JSON.stringify({ error: "Failed to enroll in course" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       );
     }
 
-    const materialsData = await materialsResponse.json();
-    const materialsContent = JSON.parse(materialsData.choices[0].message.content);
+    // Generate content in background without blocking the response
+    const generateContentInBackground = async () => {
+      try {
+        console.log("Starting background content generation for course:", courseId);
+        
+        // Generate personalized course materials
+        const materialsResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "user", content: materialsPrompt }
+            ],
+            response_format: { type: "json_object" }
+          }),
+        });
 
-    // Insert personalized course material
-    const { error: materialError } = await admin
-      .from("course_materials")
-      .insert({
-        course_id: courseId,
-        title: materialsContent.title,
-        content: materialsContent.content,
-        material_order: 1
-      });
+        if (materialsResponse.ok) {
+          const materialsData = await materialsResponse.json();
+          const materialsContent = JSON.parse(materialsData.choices[0].message.content);
 
-    if (materialError) {
-      console.error("Error inserting course material:", materialError);
-    }
+          await admin
+            .from("course_materials")
+            .insert({
+              course_id: courseId,
+              title: materialsContent.title,
+              content: materialsContent.content,
+              material_order: 1
+            });
+        }
 
-    // Generate personalized quizzes
-    if (chapters && chapters.length > 0) {
-      // Generate quiz for each chapter
-      for (const chapter of chapters) {
-        const quizPrompt = `You are an expert educator. Create a personalized quiz for a student interested in "${hobby}".
+        // Generate personalized quizzes
+        if (chapters && chapters.length > 0) {
+          for (const chapter of chapters) {
+            const quizPrompt = `You are an expert educator. Create a personalized quiz for a student interested in "${hobby}".
 
 Chapter: ${chapter.title}
 Description: ${chapter.description}
@@ -235,139 +229,67 @@ Format your response as JSON:
   ]
 }`;
 
-        const quizResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "user", content: quizPrompt }
-            ],
-            response_format: { type: "json_object" }
-          }),
-        });
+            const quizResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "user", content: quizPrompt }
+                ],
+                response_format: { type: "json_object" }
+              }),
+            });
 
-        if (quizResponse.ok) {
-          const quizData = await quizResponse.json();
-          const quizContent = JSON.parse(quizData.choices[0].message.content);
+            if (quizResponse.ok) {
+              const quizData = await quizResponse.json();
+              const quizContent = JSON.parse(quizData.choices[0].message.content);
 
-          const { data: quiz, error: quizError } = await admin
-            .from("quizzes")
-            .insert({
-              course_id: courseId,
-              chapter_id: chapter.id,
-              title: quizContent.quiz_title,
-              description: `Personalized quiz for ${hobby} enthusiasts`,
-              passing_score: 70,
-              reward_amount: 5
-            })
-            .select()
-            .single();
+              const { data: quiz } = await admin
+                .from("quizzes")
+                .insert({
+                  course_id: courseId,
+                  chapter_id: chapter.id,
+                  title: quizContent.quiz_title,
+                  description: `Personalized quiz for ${hobby} enthusiasts`,
+                  passing_score: 70,
+                  reward_amount: 5
+                })
+                .select()
+                .single();
 
-          if (quiz && !quizError) {
-            const questions = quizContent.questions.map((q: any) => ({
-              quiz_id: quiz.id,
-              question: q.question,
-              options: q.options,
-              correct_answer: q.correct_answer,
-              points: q.points
-            }));
+              if (quiz) {
+                const questions = quizContent.questions.map((q: any) => ({
+                  quiz_id: quiz.id,
+                  question: q.question,
+                  options: q.options,
+                  correct_answer: q.correct_answer,
+                  points: q.points
+                }));
 
-            await admin.from("quiz_questions").insert(questions);
+                await admin.from("quiz_questions").insert(questions);
+              }
+            }
           }
         }
+      } catch (error) {
+        console.error("Background content generation error:", error);
       }
-    } else {
-      // No chapters - generate a general course quiz
-      const generalQuizPrompt = `You are an expert educator. Create a personalized quiz for a student interested in "${hobby}".
+    };
 
-Course: ${course.title}
-Description: ${course.description}
+    // Start background task without awaiting
+    generateContentInBackground().catch(err => {
+      console.error("Background content generation failed:", err);
+    });
 
-Create 6-7 engaging multiple-choice quiz questions that test understanding of the course content while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.${languageInstruction}
-
-Format your response as JSON:
-{
-  "quiz_title": "Quiz title (make it engaging and relate to ${hobby})",
-  "questions": [
-    {
-      "question": "Question text (relate to ${hobby} when possible)",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct_answer": 0,
-      "points": 10
-    }
-  ]
-}`;
-
-      const generalQuizResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "user", content: generalQuizPrompt }
-          ],
-          response_format: { type: "json_object" }
-        }),
-      });
-
-      if (generalQuizResponse.ok) {
-        const quizData = await generalQuizResponse.json();
-        const quizContent = JSON.parse(quizData.choices[0].message.content);
-
-        const { data: quiz, error: quizError } = await admin
-          .from("quizzes")
-          .insert({
-            course_id: courseId,
-            chapter_id: null,
-            title: quizContent.quiz_title,
-            description: `Personalized quiz for ${hobby} enthusiasts`,
-            passing_score: 70,
-            reward_amount: 5
-          })
-          .select()
-          .single();
-
-        if (quiz && !quizError) {
-          const questions = quizContent.questions.map((q: any) => ({
-            quiz_id: quiz.id,
-            question: q.question,
-            options: q.options,
-            correct_answer: q.correct_answer,
-            points: q.points
-          }));
-
-          await admin.from("quiz_questions").insert(questions);
-        }
-      }
-    }
-
-    // Enroll the user
-    const { error: enrollError } = await supabase
-      .from("enrollments")
-      .insert({
-        user_id: user.id,
-        course_id: courseId
-      });
-
-    if (enrollError) {
-      console.error("Enrollment error:", enrollError);
-      return new Response(
-        JSON.stringify({ error: "Failed to enroll in course" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      );
-    }
-
+    // Return immediate response
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Successfully enrolled with personalized content!"
+        message: "Successfully enrolled! Content is being generated and will be available shortly."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

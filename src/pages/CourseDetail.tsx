@@ -123,14 +123,16 @@ const CourseDetail = () => {
         throw new Error(data.error);
       }
 
-      toast.success("Enrolled successfully! Your personalized course content has been generated!");
+      toast.success("Enrolled successfully! Your personalized content is being generated and will be available shortly. Refresh the page in a moment.");
       setIsEnrolled(true);
       setShowHobbyDialog(false);
       setHobby("");
       setLanguage("english");
       
-      // Refresh data
-      await fetchCourseData();
+      // Refresh data after a delay to allow background generation
+      setTimeout(() => {
+        fetchCourseData();
+      }, 3000);
     } catch (error: any) {
       console.error("Enrollment error:", error);
       toast.error(error.message || "Please try again later.");

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const Courses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<any[]>([]);
-  const [enrollments, setEnrollments] = useState<string[]>([]);
+  const [enrollments, setEnrollments] = useState<{ [key: string]: number }>({});
   const [quizzes, setQuizzes] = useState<{ [key: string]: any }>({});
   const [loading, setLoading] = useState(true);
 
@@ -41,9 +41,14 @@ const Courses = () => {
 
       const { data: enrollData } = await supabase
         .from("enrollments")
-        .select("course_id")
+        .select("course_id, progress_percentage")
         .eq("user_id", user.id);
-      setEnrollments(enrollData?.map(e => e.course_id) || []);
+      
+      const enrollmentMap = (enrollData || []).reduce((acc, e) => {
+        acc[e.course_id] = e.progress_percentage || 0;
+        return acc;
+      }, {} as { [key: string]: number });
+      setEnrollments(enrollmentMap);
 
       const { data: quizzesData } = await supabase
         .from("quizzes")
@@ -118,7 +123,8 @@ const Courses = () => {
             <TabsContent key={category} value={category}>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {courses.filter(c => c.category === category).map(course => {
-                  const isEnrolled = enrollments.includes(course.id);
+                  const progress = enrollments[course.id];
+                  const isEnrolled = progress !== undefined;
                   
                   return (
                     <Card key={course.id} className="shadow-elegant hover:shadow-glow transition-all">
@@ -136,6 +142,20 @@ const Courses = () => {
                       </CardHeader>
                       <CardContent>
                           <div className="space-y-4">
+                          {isEnrolled && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Progress</span>
+                                <span className="font-medium text-primary">{progress}%</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-2">
+                                <div 
+                                  className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">
                               {getCategoryLabel(course.category)}
