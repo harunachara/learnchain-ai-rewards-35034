@@ -336,28 +336,37 @@ export type Database = {
         Row: {
           correct_answer: number
           created_at: string | null
+          explanation: string | null
           id: string
+          image_url: string | null
           options: Json
           points: number
           question: string
+          question_type: Database["public"]["Enums"]["question_type"] | null
           quiz_id: string
         }
         Insert: {
           correct_answer: number
           created_at?: string | null
+          explanation?: string | null
           id?: string
+          image_url?: string | null
           options: Json
           points?: number
           question: string
+          question_type?: Database["public"]["Enums"]["question_type"] | null
           quiz_id: string
         }
         Update: {
           correct_answer?: number
           created_at?: string | null
+          explanation?: string | null
           id?: string
+          image_url?: string | null
           options?: Json
           points?: number
           question?: string
+          question_type?: Database["public"]["Enums"]["question_type"] | null
           quiz_id?: string
         }
         Relationships: [
@@ -373,6 +382,8 @@ export type Database = {
       quiz_submissions: {
         Row: {
           answers: Json
+          attempt_number: number | null
+          detailed_results: Json | null
           difficulty_level: string | null
           id: string
           needs_help: boolean | null
@@ -381,10 +392,13 @@ export type Database = {
           reward_issued: boolean
           score: number
           submitted_at: string | null
+          time_taken: number | null
           user_id: string
         }
         Insert: {
           answers: Json
+          attempt_number?: number | null
+          detailed_results?: Json | null
           difficulty_level?: string | null
           id?: string
           needs_help?: boolean | null
@@ -393,10 +407,13 @@ export type Database = {
           reward_issued?: boolean
           score: number
           submitted_at?: string | null
+          time_taken?: number | null
           user_id: string
         }
         Update: {
           answers?: Json
+          attempt_number?: number | null
+          detailed_results?: Json | null
           difficulty_level?: string | null
           id?: string
           needs_help?: boolean | null
@@ -405,6 +422,7 @@ export type Database = {
           reward_issued?: boolean
           score?: number
           submitted_at?: string | null
+          time_taken?: number | null
           user_id?: string
         }
         Relationships: [
@@ -419,6 +437,7 @@ export type Database = {
       }
       quizzes: {
         Row: {
+          allow_retakes: boolean | null
           chapter_id: string | null
           course_id: string
           created_at: string | null
@@ -426,10 +445,13 @@ export type Database = {
           id: string
           passing_score: number
           reward_amount: number
+          show_explanations: boolean | null
+          time_limit: number | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          allow_retakes?: boolean | null
           chapter_id?: string | null
           course_id: string
           created_at?: string | null
@@ -437,10 +459,13 @@ export type Database = {
           id?: string
           passing_score?: number
           reward_amount?: number
+          show_explanations?: boolean | null
+          time_limit?: number | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          allow_retakes?: boolean | null
           chapter_id?: string | null
           course_id?: string
           created_at?: string | null
@@ -448,6 +473,8 @@ export type Database = {
           id?: string
           passing_score?: number
           reward_amount?: number
+          show_explanations?: boolean | null
+          time_limit?: number | null
           title?: string
           updated_at?: string | null
         }
@@ -637,6 +664,7 @@ export type Database = {
       app_role: "student" | "teacher" | "admin"
       education_category: "primary" | "secondary" | "high_level"
       project_status: "pending" | "approved" | "rejected"
+      question_type: "multiple_choice" | "true_false" | "fill_in_blank"
       transaction_type: "reward" | "transfer" | "redeem"
     }
     CompositeTypes: {
@@ -768,6 +796,7 @@ export const Constants = {
       app_role: ["student", "teacher", "admin"],
       education_category: ["primary", "secondary", "high_level"],
       project_status: ["pending", "approved", "rejected"],
+      question_type: ["multiple_choice", "true_false", "fill_in_blank"],
       transaction_type: ["reward", "transfer", "redeem"],
     },
   },

@@ -214,20 +214,31 @@ Chapter: ${chapter.title}
 Description: ${chapter.description}
 Course: ${course.title}
 
-Create 6-7 engaging multiple-choice quiz questions that test understanding of the chapter while relating to the student's hobby "${hobby}". Make questions practical, scenario-based, and progressively challenging.${languageInstruction}
+Create 6-7 engaging quiz questions with MIXED types (multiple choice, true/false, fill-in-the-blank) that test understanding while relating to "${hobby}". Include AI-generated explanations for learning.${languageInstruction}
+
+IMPORTANT: Include a mix of question types:
+- 3-4 multiple choice questions (4 options each)
+- 2-3 true/false questions
+- 1-2 fill-in-the-blank questions
 
 Format your response as JSON:
 {
   "quiz_title": "Quiz title (include chapter name and make it engaging)",
+  "time_limit": 15,
   "questions": [
     {
       "question": "Question text (relate to ${hobby} when possible)",
+      "question_type": "multiple_choice" | "true_false" | "fill_in_blank",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_answer": 0,
+      "explanation": "Clear explanation of why this is correct and what students should learn",
       "points": 10
     }
   ]
-}`;
+}
+
+For true/false questions, use options: ["True", "False"]
+For fill-in-blank, use correct_answer as the expected answer string in options[0]`;
 
             const quizResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
@@ -256,7 +267,10 @@ Format your response as JSON:
                   title: quizContent.quiz_title,
                   description: `Personalized quiz for ${hobby} enthusiasts`,
                   passing_score: 70,
-                  reward_amount: 5
+                  reward_amount: 5,
+                  time_limit: quizContent.time_limit || null,
+                  allow_retakes: true,
+                  show_explanations: true
                 })
                 .select()
                 .single();
@@ -265,8 +279,10 @@ Format your response as JSON:
                 const questions = quizContent.questions.map((q: any) => ({
                   quiz_id: quiz.id,
                   question: q.question,
+                  question_type: q.question_type || 'multiple_choice',
                   options: q.options,
                   correct_answer: q.correct_answer,
+                  explanation: q.explanation,
                   points: q.points
                 }));
 
