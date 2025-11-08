@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, FileText, CheckCircle2, Sparkles, Rocket } from "lucide-react";
+import { BookOpen, FileText, CheckCircle2, Sparkles, Rocket, Video } from "lucide-react";
 import { toast } from "sonner";
 import { FloatingAIChatWidget } from "@/components/FloatingAIChatWidget";
+import ReactMarkdown from "react-markdown";
 
 const CourseDetail = () => {
   const { courseId } = useParams();
@@ -235,61 +236,7 @@ const CourseDetail = () => {
               <BookOpen className="w-12 h-12 text-primary" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {isEnrolled && (
-              <div className="space-y-4">
-                {videoUrl ? (
-                  <div className="relative rounded-lg overflow-hidden shadow-lg">
-                    <video 
-                      controls 
-                      className="w-full"
-                      poster="/placeholder.svg"
-                    >
-                      <source src={videoUrl} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-sm text-muted-foreground">
-                        Personalized course introduction video
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleGenerateVideo}
-                        disabled={generatingVideo}
-                        className="gap-2"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        {generatingVideo ? "Generating..." : "Regenerate Video"}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Card className="border-2 border-dashed">
-                    <CardContent className="pt-6">
-                      <div className="text-center space-y-4">
-                        <Rocket className="w-12 h-12 mx-auto text-muted-foreground" />
-                        <div>
-                          <h3 className="font-semibold mb-2">No video yet</h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Generate a personalized introduction video for this course
-                          </p>
-                        </div>
-                        <Button 
-                          onClick={handleGenerateVideo}
-                          disabled={generatingVideo}
-                          className="gap-2"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {generatingVideo ? "Generating Video..." : "Generate Video"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-            
+          <CardContent>
             {!isEnrolled ? (
               <Button onClick={handleEnrollClick} size="lg" className="gap-2">
                 <CheckCircle2 className="w-5 h-5" />
@@ -375,10 +322,11 @@ const CourseDetail = () => {
 
         {isEnrolled && (
           <Tabs defaultValue="materials" className="w-full">
-            <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-8">
+            <TabsList className="grid w-full max-w-2xl grid-cols-5 mb-8">
               <TabsTrigger value="materials">Handouts</TabsTrigger>
               <TabsTrigger value="chapters">Chapters</TabsTrigger>
               <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
+              <TabsTrigger value="video">Video</TabsTrigger>
               <TabsTrigger value="project">Project</TabsTrigger>
             </TabsList>
 
@@ -407,8 +355,8 @@ const CourseDetail = () => {
                             {material.title}
                           </AccordionTrigger>
                           <AccordionContent>
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                              <p className="whitespace-pre-wrap">{material.content}</p>
+                            <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground">
+                              <ReactMarkdown>{material.content}</ReactMarkdown>
                             </div>
                           </AccordionContent>
                         </AccordionItem>
@@ -473,6 +421,74 @@ const CourseDetail = () => {
                           </CardContent>
                         </Card>
                       ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Video */}
+            <TabsContent value="video">
+              <Card className="shadow-elegant">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="w-6 h-6 text-primary" />
+                    Course Video
+                  </CardTitle>
+                  <CardDescription>
+                    Watch your personalized course introduction video
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {videoUrl ? (
+                    <div className="space-y-4">
+                      <div className="relative rounded-lg overflow-hidden shadow-lg bg-black">
+                        <video 
+                          controls 
+                          className="w-full"
+                          poster="/placeholder.svg"
+                        >
+                          <source src={videoUrl} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Personalized course introduction video
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleGenerateVideo}
+                          disabled={generatingVideo}
+                          className="gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          {generatingVideo ? "Generating..." : "Regenerate Video"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 space-y-6">
+                      <div className="relative inline-block">
+                        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                        <Rocket className="relative w-16 h-16 mx-auto text-primary" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-semibold">No video yet</h3>
+                        <p className="text-muted-foreground max-w-md mx-auto">
+                          Generate a personalized introduction video for this course tailored to your interests
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleGenerateVideo}
+                        disabled={generatingVideo}
+                        size="lg"
+                        className="gap-2"
+                      >
+                        <Sparkles className="w-5 h-5" />
+                        {generatingVideo ? "Generating Video..." : "Generate Video"}
+                      </Button>
                     </div>
                   )}
                 </CardContent>
