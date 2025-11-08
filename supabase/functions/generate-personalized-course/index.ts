@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { courseId, hobby, language = "english" } = await req.json();
+    const { courseId, hobby, language = "english", generateVideoOnly = false } = await req.json();
     
     if (!courseId || !hobby) {
       return new Response(
@@ -65,6 +65,80 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Course not found" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
+      );
+    }
+
+    // If generateVideoOnly, just generate and update video
+    if (generateVideoOnly) {
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+      let videoUrl = null;
+
+      if (!GEMINI_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: "Video generation service not configured" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+
+      try {
+        const videoPrompt = `Create a visually stunning educational video introduction for the course "${course.title}" in ${language} language. The video should showcase the course content with engaging visuals. Include text overlays in ${language} introducing the course key concepts.`;
+        
+        const videoResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: videoPrompt,
+            config: {
+              aspectRatio: "16:9",
+              duration: "5s"
+            }
+          })
+        });
+
+        if (videoResponse.ok) {
+          const videoData = await videoResponse.json();
+          videoUrl = videoData.videoUrl || videoData.video?.url;
+          console.log("Video generated successfully:", videoUrl);
+        } else {
+          const errorText = await videoResponse.text();
+          console.error("Video generation failed:", errorText);
+          return new Response(
+            JSON.stringify({ error: "Failed to generate video: " + errorText }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+          );
+        }
+      } catch (videoError) {
+        console.error("Video generation error:", videoError);
+        return new Response(
+          JSON.stringify({ error: "Video generation failed: " + (videoError instanceof Error ? videoError.message : "Unknown error") }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+
+      // Update enrollment with video URL
+      const { error: updateError } = await supabase
+        .from("enrollments")
+        .update({ video_url: videoUrl })
+        .eq("user_id", user.id)
+        .eq("course_id", courseId);
+
+      if (updateError) {
+        console.error("Enrollment update error:", updateError);
+        return new Response(
+          JSON.stringify({ error: "Failed to update enrollment with video" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          videoUrl: videoUrl,
+          message: "Video generated successfully!"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

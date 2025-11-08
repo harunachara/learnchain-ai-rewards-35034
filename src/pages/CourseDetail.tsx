@@ -29,6 +29,7 @@ const CourseDetail = () => {
   const [language, setLanguage] = useState("english");
   const [enrolling, setEnrolling] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [generatingVideo, setGeneratingVideo] = useState(false);
 
   useEffect(() => {
     const checkAuthAndFetch = async () => {
@@ -145,6 +146,55 @@ const CourseDetail = () => {
     }
   };
 
+  const handleGenerateVideo = async () => {
+    setGeneratingVideo(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: enrollData } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .maybeSingle();
+
+      if (!enrollData) {
+        toast.error("You must be enrolled to generate a video.");
+        return;
+      }
+
+      toast.info("Generating your personalized video... This may take a moment.");
+
+      const { data, error } = await supabase.functions.invoke("generate-personalized-course", {
+        body: { 
+          courseId, 
+          hobby: "general",
+          language: "english",
+          generateVideoOnly: true
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast.success("Video generated successfully!");
+      
+      // Refresh to get the new video URL
+      setTimeout(() => {
+        fetchCourseData();
+      }, 2000);
+    } catch (error: any) {
+      console.error("Video generation error:", error);
+      toast.error(error.message || "Failed to generate video. Please try again.");
+    } finally {
+      setGeneratingVideo(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -186,19 +236,57 @@ const CourseDetail = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {videoUrl && isEnrolled && (
-              <div className="relative rounded-lg overflow-hidden shadow-lg">
-                <video 
-                  controls 
-                  className="w-full"
-                  poster="/placeholder.svg"
-                >
-                  <source src={videoUrl} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Personalized course introduction video
-                </p>
+            {isEnrolled && (
+              <div className="space-y-4">
+                {videoUrl ? (
+                  <div className="relative rounded-lg overflow-hidden shadow-lg">
+                    <video 
+                      controls 
+                      className="w-full"
+                      poster="/placeholder.svg"
+                    >
+                      <source src={videoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Personalized course introduction video
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleGenerateVideo}
+                        disabled={generatingVideo}
+                        className="gap-2"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        {generatingVideo ? "Generating..." : "Regenerate Video"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Card className="border-2 border-dashed">
+                    <CardContent className="pt-6">
+                      <div className="text-center space-y-4">
+                        <Rocket className="w-12 h-12 mx-auto text-muted-foreground" />
+                        <div>
+                          <h3 className="font-semibold mb-2">No video yet</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Generate a personalized introduction video for this course
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={handleGenerateVideo}
+                          disabled={generatingVideo}
+                          className="gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          {generatingVideo ? "Generating Video..." : "Generate Video"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
             
