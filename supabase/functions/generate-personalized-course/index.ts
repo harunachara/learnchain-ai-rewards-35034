@@ -154,12 +154,47 @@ Format your response as JSON:
   "content": "Comprehensive markdown content that includes:\n- Introduction connecting the course to their hobby\n- Key learning objectives\n- Real-world applications related to their hobby\n- Fun facts and motivational content"
 }`;
 
-    // Enroll the user immediately
+    // Generate video with Veo 3
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    let videoUrl = null;
+
+    if (GEMINI_API_KEY) {
+      try {
+        const videoPrompt = `Create a visually stunning educational video introduction for the course "${course.title}" in ${language} language. The video should showcase the course content with engaging visuals related to "${hobby}". Include text overlays in ${language} introducing the course and how it relates to ${hobby}.`;
+        
+        const videoResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/veo-3:generateVideo?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: videoPrompt,
+            config: {
+              aspectRatio: "16:9",
+              duration: "5s"
+            }
+          })
+        });
+
+        if (videoResponse.ok) {
+          const videoData = await videoResponse.json();
+          videoUrl = videoData.videoUrl || videoData.video?.url;
+          console.log("Video generated successfully:", videoUrl);
+        } else {
+          console.error("Video generation failed:", await videoResponse.text());
+        }
+      } catch (videoError) {
+        console.error("Video generation error:", videoError);
+      }
+    }
+
+    // Enroll the user immediately with video URL
     const { error: enrollError } = await supabase
       .from("enrollments")
       .insert({
         user_id: user.id,
-        course_id: courseId
+        course_id: courseId,
+        video_url: videoUrl
       });
 
     if (enrollError) {

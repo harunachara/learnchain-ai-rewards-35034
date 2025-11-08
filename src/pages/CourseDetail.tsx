@@ -28,6 +28,7 @@ const CourseDetail = () => {
   const [hobby, setHobby] = useState("");
   const [language, setLanguage] = useState("english");
   const [enrolling, setEnrolling] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuthAndFetch = async () => {
@@ -57,11 +58,14 @@ const CourseDetail = () => {
       // Check enrollment
       const { data: enrollData } = await supabase
         .from("enrollments")
-        .select("id")
+        .select("id, video_url")
         .eq("user_id", user.id)
         .eq("course_id", courseId)
         .maybeSingle();
       setIsEnrolled(!!enrollData);
+      if (enrollData?.video_url) {
+        setVideoUrl(enrollData.video_url);
+      }
 
       // Fetch materials
       const { data: materialsData } = await supabase
@@ -181,7 +185,23 @@ const CourseDetail = () => {
               <BookOpen className="w-12 h-12 text-primary" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {videoUrl && isEnrolled && (
+              <div className="relative rounded-lg overflow-hidden shadow-lg">
+                <video 
+                  controls 
+                  className="w-full"
+                  poster="/placeholder.svg"
+                >
+                  <source src={videoUrl} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Personalized course introduction video
+                </p>
+              </div>
+            )}
+            
             {!isEnrolled ? (
               <Button onClick={handleEnrollClick} size="lg" className="gap-2">
                 <CheckCircle2 className="w-5 h-5" />

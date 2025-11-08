@@ -186,6 +186,7 @@ export type Database = {
           last_activity_at: string | null
           progress_percentage: number | null
           user_id: string
+          video_url: string | null
         }
         Insert: {
           course_id: string
@@ -194,6 +195,7 @@ export type Database = {
           last_activity_at?: string | null
           progress_percentage?: number | null
           user_id: string
+          video_url?: string | null
         }
         Update: {
           course_id?: string
@@ -202,6 +204,7 @@ export type Database = {
           last_activity_at?: string | null
           progress_percentage?: number | null
           user_id?: string
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -639,10 +642,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_achievements: {
-        Args: { _user_id: string }
-        Returns: undefined
-      }
+      check_achievements: { Args: { _user_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
