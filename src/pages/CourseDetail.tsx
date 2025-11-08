@@ -436,61 +436,22 @@ const CourseDetail = () => {
                     Course Video
                   </CardTitle>
                   <CardDescription>
-                    Watch your personalized course introduction video
+                    Personalized video content for this course
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {videoUrl ? (
-                    <div className="space-y-4">
-                      <div className="relative rounded-lg overflow-hidden shadow-lg bg-black">
-                        <video 
-                          controls 
-                          className="w-full"
-                          poster="/placeholder.svg"
-                        >
-                          <source src={videoUrl} type="video/mp4" />
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                          Personalized course introduction video
-                        </p>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={handleGenerateVideo}
-                          disabled={generatingVideo}
-                          className="gap-2"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {generatingVideo ? "Generating..." : "Regenerate Video"}
-                        </Button>
-                      </div>
+                  <div className="text-center py-12 space-y-6">
+                    <div className="relative inline-block">
+                      <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                      <Rocket className="relative w-16 h-16 mx-auto text-muted-foreground" />
                     </div>
-                  ) : (
-                    <div className="text-center py-12 space-y-6">
-                      <div className="relative inline-block">
-                        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                        <Rocket className="relative w-16 h-16 mx-auto text-primary" />
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="text-xl font-semibold">No video yet</h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">
-                          Generate a personalized introduction video for this course tailored to your interests
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={handleGenerateVideo}
-                        disabled={generatingVideo}
-                        size="lg"
-                        className="gap-2"
-                      >
-                        <Sparkles className="w-5 h-5" />
-                        {generatingVideo ? "Generating Video..." : "Generate Video"}
-                      </Button>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold">Video Generation Coming Soon</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        AI-powered personalized video generation is currently under development. This feature will use advanced AI to create custom course introduction videos tailored to your interests.
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
