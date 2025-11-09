@@ -1,19 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { CameraCapture } from "@/components/CameraCapture";
-import { Camera, Loader2, BookOpen } from "lucide-react";
+import { Camera, Loader2, BookOpen, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadMathImage } from "@/lib/uploadMathImage";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import imageCompression from 'browser-image-compression';
 
 export default function MathSolver() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<any>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [language, setLanguage] = useState("english");
@@ -72,6 +75,38 @@ export default function MathSolver() {
     setShowCamera(true);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Compress image
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true
+      };
+      
+      const compressedFile = await imageCompression(file, options);
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const imageData = reader.result as string;
+        handleImageCapture(imageData);
+      };
+      
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      toast.error('Failed to process image');
+    }
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const languageNames = {
     english: "English",
     hausa: "Hausa (Hausa)",
@@ -125,10 +160,23 @@ export default function MathSolver() {
                     Take a clear photo of your math problem or upload from gallery
                   </p>
                 </div>
-                <Button onClick={() => setShowCamera(true)} size="lg">
-                  <Camera className="h-5 w-5 mr-2" />
-                  Open Camera
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={() => setShowCamera(true)} size="lg">
+                    <Camera className="h-5 w-5 mr-2" />
+                    Open Camera
+                  </Button>
+                  <Button onClick={() => fileInputRef.current?.click()} size="lg" variant="outline">
+                    <Upload className="h-5 w-5 mr-2" />
+                    Upload Image
+                  </Button>
+                </div>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
               </CardContent>
             </Card>
           )}
