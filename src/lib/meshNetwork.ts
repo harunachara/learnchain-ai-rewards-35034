@@ -1,10 +1,19 @@
-import SimplePeer from 'simple-peer';
+import type SimplePeerType from 'simple-peer';
 import { offlineStorage, OfflineCourse } from './offlineStorage';
+
+let SimplePeerCtor: any | null = null;
+async function getSimplePeer() {
+  if (!SimplePeerCtor) {
+    const mod = await import('simple-peer');
+    SimplePeerCtor = mod.default;
+  }
+  return SimplePeerCtor;
+}
 
 interface Peer {
   id: string;
   name: string;
-  connection: SimplePeer.Instance;
+  connection: SimplePeerType.Instance;
   availableCourses: string[];
 }
 
@@ -41,10 +50,11 @@ class MeshNetwork {
 
   async connectToPeer(peerId: string, initiator: boolean = false): Promise<boolean> {
     try {
+      const SimplePeer = await getSimplePeer();
       const peer = new SimplePeer({
         initiator,
         trickle: false,
-      });
+      }) as SimplePeerType.Instance;
 
       peer.on('signal', (data) => {
         console.log('Signal data:', data);
@@ -85,7 +95,7 @@ class MeshNetwork {
     }
   }
 
-  private async handlePeerMessage(peerId: string, message: any, connection: SimplePeer.Instance) {
+  private async handlePeerMessage(peerId: string, message: any, connection: SimplePeerType.Instance) {
     switch (message.type) {
       case 'courses':
         this.peers.set(peerId, {
