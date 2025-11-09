@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.verify-project]
 verify_jwt = true
+
+[functions.solve-math-problem]
+verify_jwt = true
+
+[functions.sync-offline-data]
+verify_jwt = true

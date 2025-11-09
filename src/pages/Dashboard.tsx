@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProgressBar } from "@/components/ProgressBar";
 import { AchievementBadge } from "@/components/AchievementBadge";
-import { Wallet, BookOpen, Trophy, Sparkles } from "lucide-react";
+import { Wallet, BookOpen, Trophy, Sparkles, Network, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { offlineStorage } from "@/lib/offlineStorage";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ const Dashboard = () => {
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [achievements, setAchievements] = useState<any[]>([]);
+  const [offlineCoursesCount, setOfflineCoursesCount] = useState(0);
+  const [mathSolutionsCount, setMathSolutionsCount] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -87,6 +90,17 @@ const Dashboard = () => {
         .eq("user_id", user.id);
       setEnrollments(enrollmentsData || []);
 
+      // Fetch offline courses count
+      const storageInfo = await offlineStorage.getStorageSize();
+      setOfflineCoursesCount(storageInfo.courses);
+
+      // Fetch math solutions count
+      const { data: mathSolutions } = await supabase
+        .from("math_solutions")
+        .select("id", { count: 'exact' })
+        .eq("user_id", user.id);
+      setMathSolutionsCount(mathSolutions?.length || 0);
+
     } catch (error: any) {
       toast.error("Failed to load dashboard");
     } finally {
@@ -149,7 +163,7 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="shadow-elegant hover:shadow-glow transition-shadow cursor-pointer" onClick={() => navigate("/wallet")}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">LearnChain Token Balance</CardTitle>
@@ -188,6 +202,32 @@ const Dashboard = () => {
                     {projects.filter(p => p.status === 'approved').length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">Keep learning!</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-shadow cursor-pointer" onClick={() => navigate("/mesh-network")}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Offline Courses</CardTitle>
+                  <Network className="w-4 h-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{offlineCoursesCount}</div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Available without internet
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-shadow cursor-pointer" onClick={() => navigate("/math-solver")}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Math Problems Solved</CardTitle>
+                  <Camera className="w-4 h-4 text-accent" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{mathSolutionsCount}</div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    AI-powered solutions
+                  </p>
                 </CardContent>
               </Card>
             </div>

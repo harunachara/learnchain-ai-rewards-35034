@@ -223,6 +223,36 @@ export type Database = {
           },
         ]
       }
+      math_solutions: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string | null
+          language: string | null
+          problem_text: string | null
+          solution: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          language?: string | null
+          problem_text?: string | null
+          solution?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          language?: string | null
+          problem_text?: string | null
+          solution?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null

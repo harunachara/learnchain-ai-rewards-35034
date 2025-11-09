@@ -12,6 +12,8 @@ import AIMentor from "./pages/AIMentor";
 import Wallet from "./pages/Wallet";
 import SubmitProject from "./pages/SubmitProject";
 import Quiz from "./pages/Quiz";
+import MeshNetwork from "./pages/MeshNetwork";
+import MathSolver from "./pages/MathSolver";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/submit-project/:projectId" element={<SubmitProject />} />
           <Route path="/quiz/:quizId" element={<Quiz />} />
+          <Route path="/mesh-network" element={<MeshNetwork />} />
+          <Route path="/math-solver" element={<MathSolver />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

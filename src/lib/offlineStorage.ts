@@ -31,7 +31,7 @@ export interface OfflineCourse {
   title: string;
   description: string;
   category: string;
-  difficulty: string;
+  difficulty?: string;
   chapters: any[];
   cached_at: number;
 }

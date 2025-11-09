@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { GraduationCap, Wallet } from "lucide-react";
+import { GraduationCap, Wallet, Network, Camera } from "lucide-react";
+import { MeshNetworkStatus } from "./MeshNetworkStatus";
 
 export const Navbar = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -37,8 +38,17 @@ export const Navbar = () => {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <MeshNetworkStatus />
               <Button variant="ghost" onClick={() => navigate("/dashboard")}>
                 Dashboard
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/math-solver")} className="gap-2">
+                <Camera className="w-4 h-4" />
+                Math Solver
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/mesh-network")} className="gap-2">
+                <Network className="w-4 h-4" />
+                Offline
               </Button>
               <Button variant="ghost" onClick={() => navigate("/wallet")} className="gap-2">
                 <Wallet className="w-4 h-4" />

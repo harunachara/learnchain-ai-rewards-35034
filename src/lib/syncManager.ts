@@ -43,7 +43,11 @@ export const syncManager = {
 
       if (courseError) throw courseError;
 
-      await offlineStorage.saveCourse(course);
+      // Add cached_at timestamp when saving
+      await offlineStorage.saveCourse({
+        ...course,
+        cached_at: Date.now()
+      });
 
       // Download chapters
       if (course.chapters) {
