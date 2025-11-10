@@ -253,6 +253,77 @@ export type Database = {
         }
         Relationships: []
       }
+      mesh_rooms: {
+        Row: {
+          code: string
+          created_at: string | null
+          expires_at: string | null
+          host_id: string
+          host_name: string
+          id: string
+          is_active: boolean | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          expires_at?: string | null
+          host_id: string
+          host_name: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          expires_at?: string | null
+          host_id?: string
+          host_name?: string
+          id?: string
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
+      mesh_signaling: {
+        Row: {
+          created_at: string | null
+          id: string
+          peer_id: string
+          peer_name: string
+          room_code: string
+          signal_data: Json
+          signal_type: string
+          target_peer_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          peer_id: string
+          peer_name: string
+          room_code: string
+          signal_data: Json
+          signal_type: string
+          target_peer_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          peer_id?: string
+          peer_name?: string
+          room_code?: string
+          signal_data?: Json
+          signal_type?: string
+          target_peer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mesh_signaling_room_code_fkey"
+            columns: ["room_code"]
+            isOneToOne: false
+            referencedRelation: "mesh_rooms"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
@@ -673,6 +744,7 @@ export type Database = {
     }
     Functions: {
       check_achievements: { Args: { _user_id: string }; Returns: undefined }
+      cleanup_expired_rooms: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

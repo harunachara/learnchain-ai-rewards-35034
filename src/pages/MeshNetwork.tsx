@@ -5,10 +5,13 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Download, Users, Wifi, Database } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, Users, Wifi, Database, Share2, Link2, LogOut, Copy, Check } from "lucide-react";
 import { meshNetwork } from "@/lib/meshNetwork";
 import { offlineStorage } from "@/lib/offlineStorage";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 export default function MeshNetwork() {
   const navigate = useNavigate();
@@ -16,9 +19,24 @@ export default function MeshNetwork() {
   const [peers, setPeers] = useState<any[]>([]);
   const [offlineCourses, setOfflineCourses] = useState<any[]>([]);
   const [storageInfo, setStorageInfo] = useState({ courses: 0, total: 0 });
+  const [currentRoom, setCurrentRoom] = useState<string | null>(null);
+  const [roomCode, setRoomCode] = useState("");
+  const [userName, setUserName] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
     loadData();
+    
+    // Update peer list periodically
+    const interval = setInterval(() => {
+      const peerList = meshNetwork.getPeers();
+      setPeers(peerList);
+      const room = meshNetwork.getCurrentRoom();
+      setCurrentRoom(room);
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
@@ -34,12 +52,67 @@ export default function MeshNetwork() {
     toast.success(enabled ? "Sharing enabled" : "Sharing disabled");
   };
 
-  const handleDiscoverPeers = async () => {
-    toast.info("Discovering nearby peers...");
-    const peerIds = await meshNetwork.discoverPeers();
-    const peerList = meshNetwork.getPeers();
-    setPeers(peerList);
-    toast.success(`Found ${peerList.length} peers`);
+  const handleCreateRoom = async () => {
+    if (!userName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const code = await meshNetwork.createRoom(userName.trim());
+      setCurrentRoom(code);
+      toast.success(`Room created! Code: ${code}`);
+    } catch (error: any) {
+      console.error('Failed to create room:', error);
+      toast.error(error.message || "Failed to create room. Please sign in first.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (!userName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    if (!roomCode.trim() || roomCode.length !== 6) {
+      toast.error("Please enter a valid 6-digit room code");
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const success = await meshNetwork.joinRoom(roomCode.toUpperCase(), userName.trim());
+      if (success) {
+        setCurrentRoom(roomCode.toUpperCase());
+        toast.success("Joined room successfully!");
+      } else {
+        toast.error("Room not found or inactive");
+      }
+    } catch (error: any) {
+      console.error('Failed to join room:', error);
+      toast.error(error.message || "Failed to join room");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    await meshNetwork.leaveRoom();
+    setCurrentRoom(null);
+    setPeers([]);
+    toast.info("Left room");
+  };
+
+  const handleCopyCode = () => {
+    if (currentRoom) {
+      navigator.clipboard.writeText(currentRoom);
+      setCopiedCode(true);
+      toast.success("Room code copied!");
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
   };
 
   const handleRequestCourse = async (peerId: string, courseId: string) => {
@@ -66,11 +139,126 @@ export default function MeshNetwork() {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Mesh Network</h1>
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              Mesh Network
+              {currentRoom && (
+                <Badge variant="default" className="gap-1">
+                  <Wifi className="h-3 w-3" />
+                  Connected
+                </Badge>
+              )}
+            </h1>
             <p className="text-muted-foreground">
-              Share and discover courses offline through peer-to-peer connections
+              First educational platform with peer-to-peer course sharing via mesh network
             </p>
           </div>
+
+          {/* Room Management */}
+          {!currentRoom ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5" />
+                  Create or Join Room
+                </CardTitle>
+                <CardDescription>Connect with peers to share courses offline</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="userName">Your Name</Label>
+                  <Input
+                    id="userName"
+                    placeholder="Enter your name"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Create New Room</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Start sharing courses with nearby peers
+                    </p>
+                    <Button
+                      onClick={handleCreateRoom}
+                      disabled={isConnecting}
+                      className="w-full"
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      {isConnecting ? "Creating..." : "Create Room"}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Join Existing Room</h3>
+                    <Input
+                      placeholder="Enter 6-digit code"
+                      value={roomCode}
+                      onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                      maxLength={6}
+                      className="font-mono text-lg text-center"
+                    />
+                    <Button
+                      onClick={handleJoinRoom}
+                      disabled={isConnecting}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Link2 className="h-4 w-4 mr-2" />
+                      {isConnecting ? "Joining..." : "Join Room"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wifi className="h-5 w-5" />
+                  Active Room
+                </CardTitle>
+                <CardDescription>Currently connected to sharing room</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Room Code</p>
+                    <p className="text-3xl font-mono font-bold">{currentRoom}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyCode}
+                  >
+                    {copiedCode ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {peers.length} peer{peers.length !== 1 ? 's' : ''} connected
+                    </span>
+                  </div>
+                  <Button
+                    onClick={handleLeaveRoom}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Leave Room
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Storage Info */}
           <Card>
@@ -118,49 +306,55 @@ export default function MeshNetwork() {
             </CardContent>
           </Card>
 
-          {/* Peer Discovery */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Nearby Peers
-              </CardTitle>
-              <CardDescription>Students nearby who can share courses</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button onClick={handleDiscoverPeers} className="w-full">
-                <Wifi className="h-4 w-4 mr-2" />
-                Discover Peers
-              </Button>
-
-              {peers.length > 0 ? (
-                <div className="space-y-2">
-                  {peers.map((peer) => (
-                    <Card key={peer.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{peer.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {peer.availableCourses.length} courses available
-                            </p>
+          {/* Connected Peers */}
+          {currentRoom && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Connected Peers
+                </CardTitle>
+                <CardDescription>Real-time peer-to-peer connections in this room</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {peers.length > 0 ? (
+                  <div className="space-y-2">
+                    {peers.map((peer) => (
+                      <Card key={peer.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                              <div>
+                                <p className="font-medium">{peer.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {peer.availableCourses.length} courses shared
+                                </p>
+                              </div>
+                            </div>
+                            <Button size="sm" variant="outline">
+                              <Download className="h-4 w-4 mr-2" />
+                              Request Courses
+                            </Button>
                           </div>
-                          <Button size="sm" variant="outline">
-                            <Download className="h-4 w-4 mr-2" />
-                            Browse
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No peers found. Make sure Bluetooth and WiFi are enabled.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 space-y-2">
+                    <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">
+                      Waiting for peers to join...
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Share the room code with nearby students
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Offline Courses */}
           <Card>
