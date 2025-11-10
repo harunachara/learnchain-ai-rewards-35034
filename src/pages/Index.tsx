@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { GraduationCap, Sparkles, Trophy, Wallet, Languages } from "lucide-react";
+import { GraduationCap, Sparkles, Trophy, Wallet, Languages, Network } from "lucide-react";
 import heroImage from "@/assets/hero-education.jpg";
 
 const Index = () => {
@@ -74,7 +74,7 @@ const Index = () => {
           <p className="text-muted-foreground text-lg">Everything you need for personalized, rewarding education</p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8">
           <div className="p-6 rounded-xl bg-card border border-border shadow-elegant hover:shadow-glow transition-all">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-4">
               <Sparkles className="w-6 h-6 text-white" />
@@ -112,6 +112,16 @@ const Index = () => {
             <h3 className="text-xl font-bold mb-2">Multi-Language Support</h3>
             <p className="text-muted-foreground">
               Learn in your preferred language: English, Hausa, Igbo, or Yoruba. Education without barriers!
+            </p>
+          </div>
+
+          <div className="p-6 rounded-xl bg-card border border-border shadow-elegant hover:shadow-glow transition-all">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center mb-4">
+              <Network className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">First Mesh Network Platform</h3>
+            <p className="text-muted-foreground">
+              Revolutionary peer-to-peer course sharing. Learn offline and connect directly with peers!
             </p>
           </div>
         </div>
