@@ -72,6 +72,8 @@ class MeshNetwork {
     this.currentRoomCode = code;
     this.myName = userName;
     await this.setupSignalingChannel(code);
+    // Immediately announce our presence for discovery
+    await this.sendPresence();
     
     console.log(`Room created with code: ${code}`);
     return code;
@@ -102,16 +104,36 @@ class MeshNetwork {
     return true;
   }
 
+  private async sendPresence() {
+    if (!this.currentRoomCode) return;
+    try {
+      await supabase.from('mesh_signaling').insert({
+        room_code: this.currentRoomCode,
+        peer_id: this.myId,
+        peer_name: this.myName,
+        target_peer_id: null,
+        signal_type: 'presence',
+        signal_data: {}
+      });
+      console.log('Presence announced');
+    } catch (err) {
+      console.error('Failed to announce presence:', err);
+    }
+  }
+
   private async announcePresence() {
-    // Get list of peers already in room (from recent signals)
     if (!this.currentRoomCode) return;
 
+    // 1) Announce our presence so others can initiate connections to us
+    await this.sendPresence();
+
+    // 2) Also look at recent signals to proactively connect to existing peers
     const { data: recentSignals } = await supabase
       .from('mesh_signaling')
       .select('peer_id, peer_name')
       .eq('room_code', this.currentRoomCode)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
     if (recentSignals) {
       const uniquePeers = new Map<string, string>();
@@ -121,7 +143,6 @@ class MeshNetwork {
         }
       });
 
-      // Initiate connections to existing peers
       for (const [peerId, peerName] of uniquePeers) {
         await this.initiateConnection(peerId, peerName);
       }
@@ -159,6 +180,16 @@ class MeshNetwork {
 
     // Ignore our own signals
     if (peer_id === this.myId) return;
+
+    // Handle presence broadcasts for peer discovery
+    if (signal_type === 'presence') {
+      // Proactively initiate a connection to the announcing peer
+      // Avoid duplicates if already connected/connecting
+      if (!this.peers.has(peer_id)) {
+        await this.initiateConnection(peer_id, peer_name);
+      }
+      return;
+    }
 
     // Check if this signal is for us
     if (target_peer_id && target_peer_id !== this.myId) return;
