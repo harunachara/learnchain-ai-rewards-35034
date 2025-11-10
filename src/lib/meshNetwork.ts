@@ -1,7 +1,7 @@
 import type SimplePeerType from 'simple-peer';
 import { offlineStorage, OfflineCourse } from './offlineStorage';
 import { supabase } from '@/integrations/supabase/client';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 let SimplePeerCtor: any | null = null;
 async function getSimplePeer() {
@@ -19,11 +19,6 @@ interface Peer {
   availableCourses: string[];
 }
 
-interface SignalData {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  data: any;
-}
-
 class MeshNetwork {
   private peers: Map<string, Peer> = new Map();
   private myId: string;
@@ -31,30 +26,23 @@ class MeshNetwork {
   private sharingEnabled: boolean = true;
   private currentRoomCode: string | null = null;
   private signalingChannel: RealtimeChannel | null = null;
-  private userId: string | null = null;
-  private pendingConnections: Map<string, SimplePeerType.Instance> = new Map();
+  private onPeersUpdated: (() => void) | null = null;
 
   constructor() {
     this.myId = this.generateId();
     this.myName = `Student-${this.myId.slice(0, 6)}`;
-    this.initializeUser();
-  }
-
-  private async initializeUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    this.userId = user?.id || null;
   }
 
   private generateId(): string {
     return Math.random().toString(36).substring(2, 15);
   }
 
-  private generateRoomCode(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  }
-
   setSharingEnabled(enabled: boolean) {
     this.sharingEnabled = enabled;
+  }
+
+  setOnPeersUpdated(callback: () => void) {
+    this.onPeersUpdated = callback;
   }
 
   async getAvailableCourses(): Promise<string[]> {
@@ -62,35 +50,35 @@ class MeshNetwork {
     return courses.map(c => c.id);
   }
 
-  async createRoom(hostName?: string): Promise<string> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Must be authenticated to create room');
-
-    const roomCode = this.generateRoomCode();
-    const displayName = hostName || this.myName;
-
+  async createRoom(userId: string, userName: string): Promise<string> {
+    // Generate 6-digit room code
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
     const { data, error } = await supabase
       .from('mesh_rooms')
       .insert({
-        code: roomCode,
-        host_id: user.id,
-        host_name: displayName
+        code,
+        host_id: userId,
+        host_name: userName,
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating room:', error);
+      throw error;
+    }
 
-    this.currentRoomCode = roomCode;
-    this.myName = displayName;
-    await this.joinSignalingChannel(roomCode);
-
-    console.log('✅ Room created:', roomCode);
-    return roomCode;
+    this.currentRoomCode = code;
+    this.myName = userName;
+    await this.setupSignalingChannel(code);
+    
+    console.log(`Room created with code: ${code}`);
+    return code;
   }
 
-  async joinRoom(roomCode: string, peerName?: string): Promise<boolean> {
-    // Check if room exists and is active
+  async joinRoom(roomCode: string, userName: string): Promise<boolean> {
+    // Verify room exists and is active
     const { data: room, error } = await supabase
       .from('mesh_rooms')
       .select('*')
@@ -104,20 +92,51 @@ class MeshNetwork {
     }
 
     this.currentRoomCode = roomCode;
-    this.myName = peerName || this.myName;
-    await this.joinSignalingChannel(roomCode);
-
-    console.log('✅ Joined room:', roomCode);
+    this.myName = userName;
+    await this.setupSignalingChannel(roomCode);
+    
+    // Announce presence to room by sending an offer
+    await this.announcePresence();
+    
+    console.log(`Joined room: ${roomCode}`);
     return true;
   }
 
-  private async joinSignalingChannel(roomCode: string) {
+  private async announcePresence() {
+    // Get list of peers already in room (from recent signals)
+    if (!this.currentRoomCode) return;
+
+    const { data: recentSignals } = await supabase
+      .from('mesh_signaling')
+      .select('peer_id, peer_name')
+      .eq('room_code', this.currentRoomCode)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (recentSignals) {
+      const uniquePeers = new Map<string, string>();
+      recentSignals.forEach(signal => {
+        if (signal.peer_id !== this.myId) {
+          uniquePeers.set(signal.peer_id, signal.peer_name);
+        }
+      });
+
+      // Initiate connections to existing peers
+      for (const [peerId, peerName] of uniquePeers) {
+        await this.initiateConnection(peerId, peerName);
+      }
+    }
+  }
+
+  private async setupSignalingChannel(roomCode: string) {
+    // Clean up existing channel
     if (this.signalingChannel) {
       await supabase.removeChannel(this.signalingChannel);
     }
 
+    // Subscribe to signaling messages for this room
     this.signalingChannel = supabase
-      .channel(`mesh-room-${roomCode}`)
+      .channel(`mesh_room_${roomCode}`)
       .on(
         'postgres_changes',
         {
@@ -126,238 +145,158 @@ class MeshNetwork {
           table: 'mesh_signaling',
           filter: `room_code=eq.${roomCode}`
         },
-        (payload) => this.handleSignalingMessage(payload.new)
+        async (payload: any) => {
+          await this.handleSignalingMessage(payload.new);
+        }
       )
-      .subscribe((status) => {
-        console.log('Signaling channel status:', status);
-      });
+      .subscribe();
 
-    // Announce presence to room
-    await this.announcePresence(roomCode);
-  }
-
-  private async announcePresence(roomCode: string) {
-    const courses = await this.getAvailableCourses();
-    
-    await supabase.from('mesh_signaling').insert({
-      room_code: roomCode,
-      peer_id: this.myId,
-      peer_name: this.myName,
-      signal_type: 'ice-candidate',
-      signal_data: { 
-        type: 'presence',
-        courses: courses,
-        name: this.myName 
-      }
-    });
+    console.log(`Subscribed to signaling channel for room ${roomCode}`);
   }
 
   private async handleSignalingMessage(message: any) {
-    // Ignore our own messages
-    if (message.peer_id === this.myId) return;
+    const { peer_id, peer_name, target_peer_id, signal_type, signal_data } = message;
 
-    // Handle targeted messages
-    if (message.target_peer_id && message.target_peer_id !== this.myId) return;
+    // Ignore our own signals
+    if (peer_id === this.myId) return;
 
-    console.log('📡 Received signal:', message.signal_type, 'from', message.peer_name);
+    // Check if this signal is for us
+    if (target_peer_id && target_peer_id !== this.myId) return;
 
-    const signalData = message.signal_data;
+    console.log(`Received ${signal_type} from ${peer_name} (${peer_id})`);
 
-    if (signalData.type === 'presence') {
-      // A new peer announced their presence
-      console.log('👋 New peer detected:', message.peer_name, 'with', signalData.courses?.length || 0, 'courses');
-      
-      // If we don't have a connection to this peer, initiate one
-      if (!this.peers.has(message.peer_id) && !this.pendingConnections.has(message.peer_id)) {
-        await this.initiateConnection(message.peer_id, message.peer_name, signalData.courses || []);
-      }
-    } else if (message.signal_type === 'offer') {
-      await this.handleOffer(message.peer_id, message.peer_name, signalData, signalData.courses || []);
-    } else if (message.signal_type === 'answer') {
-      await this.handleAnswer(message.peer_id, signalData);
-    } else if (message.signal_type === 'ice-candidate' && signalData.candidate) {
-      await this.handleIceCandidate(message.peer_id, signalData);
-    }
-  }
-
-  private async initiateConnection(peerId: string, peerName: string, courses: string[]) {
     try {
       const SimplePeer = await getSimplePeer();
-      const peer = new SimplePeer({
-        initiator: true,
-        trickle: true,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
+      let peer = this.peers.get(peer_id);
+
+      if (signal_type === 'offer') {
+        // Create peer connection for incoming offer
+        if (!peer) {
+          const peerConnection = new SimplePeer({
+            initiator: false,
+            trickle: true,
+          }) as SimplePeerType.Instance;
+
+          peer = {
+            id: peer_id,
+            name: peer_name,
+            connection: peerConnection,
+            availableCourses: [],
+          };
+
+          this.setupPeerListeners(peer);
+          this.peers.set(peer_id, peer);
         }
-      }) as SimplePeerType.Instance;
 
-      this.pendingConnections.set(peerId, peer);
-      this.setupPeerHandlers(peer, peerId, peerName, courses);
-
-      peer.on('signal', async (data) => {
-        console.log('📤 Sending offer to', peerName);
-        const myCourses = await this.getAvailableCourses();
-        
-        await supabase.from('mesh_signaling').insert({
-          room_code: this.currentRoomCode!,
-          peer_id: this.myId,
-          peer_name: this.myName,
-          target_peer_id: peerId,
-          signal_type: 'offer',
-          signal_data: { ...data, courses: myCourses }
-        });
-      });
-    } catch (err) {
-      console.error('Failed to initiate connection:', err);
-      this.pendingConnections.delete(peerId);
-    }
-  }
-
-  private async handleOffer(peerId: string, peerName: string, signalData: any, courses: string[]) {
-    try {
-      const SimplePeer = await getSimplePeer();
-      const peer = new SimplePeer({
-        initiator: false,
-        trickle: true,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      }) as SimplePeerType.Instance;
-
-      this.pendingConnections.set(peerId, peer);
-      this.setupPeerHandlers(peer, peerId, peerName, courses);
-
-      peer.on('signal', async (data) => {
-        console.log('📤 Sending answer to', peerName);
-        const myCourses = await this.getAvailableCourses();
-        
-        await supabase.from('mesh_signaling').insert({
-          room_code: this.currentRoomCode!,
-          peer_id: this.myId,
-          peer_name: this.myName,
-          target_peer_id: peerId,
-          signal_type: 'answer',
-          signal_data: { ...data, courses: myCourses }
-        });
-      });
-
-      peer.signal(signalData);
-    } catch (err) {
-      console.error('Failed to handle offer:', err);
-      this.pendingConnections.delete(peerId);
-    }
-  }
-
-  private async handleAnswer(peerId: string, signalData: any) {
-    const peer = this.pendingConnections.get(peerId);
-    if (peer) {
-      console.log('📥 Received answer from', peerId);
-      peer.signal(signalData);
-    }
-  }
-
-  private async handleIceCandidate(peerId: string, signalData: any) {
-    const peer = this.pendingConnections.get(peerId) || this.peers.get(peerId)?.connection;
-    if (peer && signalData.candidate) {
-      try {
-        peer.signal(signalData);
-      } catch (err) {
-        console.error('Error handling ICE candidate:', err);
+        peer.connection.signal(signal_data);
+      } else if (signal_type === 'answer' && peer) {
+        peer.connection.signal(signal_data);
+      } else if (signal_type === 'ice-candidate' && peer) {
+        peer.connection.signal(signal_data);
       }
+    } catch (err) {
+      console.error('Error handling signaling message:', err);
     }
   }
 
-  private setupPeerHandlers(
-    peer: SimplePeerType.Instance,
-    peerId: string,
-    peerName: string,
-    courses: string[]
-  ) {
-    peer.on('connect', () => {
-      console.log('🔗 Connected to peer:', peerName);
-      
-      // Move from pending to active
-      this.pendingConnections.delete(peerId);
-      this.peers.set(peerId, {
-        id: peerId,
-        name: peerName,
-        connection: peer,
-        availableCourses: courses
+  private setupPeerListeners(peer: Peer) {
+    peer.connection.on('signal', async (data: any) => {
+      // Send signal through Supabase
+      if (!this.currentRoomCode) return;
+
+      const signalType = data.type === 'offer' ? 'offer' : 
+                        data.type === 'answer' ? 'answer' : 'ice-candidate';
+
+      await supabase.from('mesh_signaling').insert({
+        room_code: this.currentRoomCode,
+        peer_id: this.myId,
+        peer_name: this.myName,
+        target_peer_id: peer.id,
+        signal_type: signalType,
+        signal_data: data,
       });
 
-      // Exchange course lists
-      peer.send(JSON.stringify({
+      console.log(`Sent ${signalType} to ${peer.id}`);
+    });
+
+    peer.connection.on('connect', async () => {
+      console.log(`✅ Connected to peer ${peer.name} (${peer.id})`);
+      
+      // Exchange available courses
+      const myCourses = await this.getAvailableCourses();
+      peer.connection.send(JSON.stringify({
         type: 'courses',
-        courses: [],
+        courses: myCourses,
         name: this.myName
       }));
+
+      if (this.onPeersUpdated) this.onPeersUpdated();
     });
 
-    peer.on('data', async (data) => {
+    peer.connection.on('data', async (data: any) => {
       const message = JSON.parse(data.toString());
-      await this.handlePeerMessage(peerId, message, peer);
+      await this.handlePeerMessage(peer.id, message, peer.connection);
     });
 
-    peer.on('error', (err) => {
-      console.error('❌ Peer error:', peerName, err);
-      this.pendingConnections.delete(peerId);
-      this.peers.delete(peerId);
+    peer.connection.on('error', (err: Error) => {
+      console.error('Peer error:', err);
+      this.peers.delete(peer.id);
+      if (this.onPeersUpdated) this.onPeersUpdated();
     });
 
-    peer.on('close', () => {
-      console.log('🔌 Disconnected from peer:', peerName);
-      this.pendingConnections.delete(peerId);
-      this.peers.delete(peerId);
+    peer.connection.on('close', () => {
+      console.log(`Disconnected from peer ${peer.id}`);
+      this.peers.delete(peer.id);
+      if (this.onPeersUpdated) this.onPeersUpdated();
     });
   }
 
-  async leaveRoom() {
-    if (this.signalingChannel) {
-      await supabase.removeChannel(this.signalingChannel);
-      this.signalingChannel = null;
+  async initiateConnection(targetPeerId: string, targetPeerName: string): Promise<boolean> {
+    if (!this.currentRoomCode) {
+      console.error('Not in a room');
+      return false;
     }
 
-    // Close all peer connections
-    this.disconnectAll();
-    
-    // If we're the host, deactivate the room
-    if (this.currentRoomCode && this.userId) {
-      await supabase
-        .from('mesh_rooms')
-        .update({ is_active: false })
-        .eq('code', this.currentRoomCode)
-        .eq('host_id', this.userId);
+    // Don't connect to ourselves or if already connected
+    if (targetPeerId === this.myId || this.peers.has(targetPeerId)) {
+      return false;
     }
 
-    this.currentRoomCode = null;
-    console.log('👋 Left room');
-  }
+    try {
+      const SimplePeer = await getSimplePeer();
+      const peerConnection = new SimplePeer({
+        initiator: true,
+        trickle: true,
+      }) as SimplePeerType.Instance;
 
-  async discoverPeers(): Promise<string[]> {
-    return Array.from(this.peers.keys());
-  }
+      const peer: Peer = {
+        id: targetPeerId,
+        name: targetPeerName,
+        connection: peerConnection,
+        availableCourses: [],
+      };
 
-  async connectToPeer(peerId: string, initiator: boolean = false): Promise<boolean> {
-    // This method is now handled automatically through the signaling channel
-    return true;
+      this.setupPeerListeners(peer);
+      this.peers.set(targetPeerId, peer);
+
+      console.log(`Initiating connection to ${targetPeerName}`);
+      return true;
+    } catch (err) {
+      console.error('Failed to initiate connection:', err);
+      return false;
+    }
   }
 
   private async handlePeerMessage(peerId: string, message: any, connection: SimplePeerType.Instance) {
+    const peer = this.peers.get(peerId);
+    if (!peer) return;
+
     switch (message.type) {
       case 'courses':
-        this.peers.set(peerId, {
-          id: peerId,
-          name: message.name,
-          connection,
-          availableCourses: message.courses
-        });
+        peer.name = message.name;
+        peer.availableCourses = message.courses;
         console.log(`Peer ${message.name} has ${message.courses.length} courses`);
+        if (this.onPeersUpdated) this.onPeersUpdated();
         break;
 
       case 'request_course':
@@ -414,23 +353,42 @@ class MeshNetwork {
     return Array.from(this.peers.values());
   }
 
-  getCurrentRoom(): string | null {
-    return this.currentRoomCode;
-  }
-
-  getMyName(): string {
-    return this.myName;
-  }
-
-  disconnectAll() {
+  async leaveRoom() {
+    // Disconnect all peers
     this.peers.forEach(peer => {
       peer.connection.destroy();
     });
-    this.pendingConnections.forEach(peer => {
-      peer.destroy();
-    });
     this.peers.clear();
-    this.pendingConnections.clear();
+
+    // Unsubscribe from signaling
+    if (this.signalingChannel) {
+      await supabase.removeChannel(this.signalingChannel);
+      this.signalingChannel = null;
+    }
+
+    // Clean up room if we're the host
+    if (this.currentRoomCode) {
+      const { data: user } = await supabase.auth.getUser();
+      if (user.user) {
+        await supabase
+          .from('mesh_rooms')
+          .update({ is_active: false })
+          .eq('code', this.currentRoomCode)
+          .eq('host_id', user.user.id);
+      }
+    }
+
+    this.currentRoomCode = null;
+    if (this.onPeersUpdated) this.onPeersUpdated();
+    console.log('Left room and disconnected all peers');
+  }
+
+  getCurrentRoomCode(): string | null {
+    return this.currentRoomCode;
+  }
+
+  disconnectAll() {
+    this.leaveRoom();
   }
 }
 

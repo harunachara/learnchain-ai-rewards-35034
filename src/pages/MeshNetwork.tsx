@@ -12,6 +12,7 @@ import { meshNetwork } from "@/lib/meshNetwork";
 import { offlineStorage } from "@/lib/offlineStorage";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MeshNetwork() {
   const navigate = useNavigate();
@@ -28,11 +29,16 @@ export default function MeshNetwork() {
   useEffect(() => {
     loadData();
     
-    // Update peer list periodically
+    // Set up peer update callback
+    meshNetwork.setOnPeersUpdated(() => {
+      setPeers(meshNetwork.getPeers());
+    });
+    
+    // Update peer list and room status periodically
     const interval = setInterval(() => {
       const peerList = meshNetwork.getPeers();
       setPeers(peerList);
-      const room = meshNetwork.getCurrentRoom();
+      const room = meshNetwork.getCurrentRoomCode();
       setCurrentRoom(room);
     }, 1000);
 
@@ -60,7 +66,14 @@ export default function MeshNetwork() {
 
     setIsConnecting(true);
     try {
-      const code = await meshNetwork.createRoom(userName.trim());
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please sign in to create a room");
+        return;
+      }
+
+      const code = await meshNetwork.createRoom(user.id, userName.trim());
       setCurrentRoom(code);
       toast.success(`Room created! Code: ${code}`);
     } catch (error: any) {
