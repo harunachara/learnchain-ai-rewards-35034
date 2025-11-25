@@ -47,6 +47,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "events": "^3.3.0",
     "gun": "^0.2020.1241",
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
@@ -67,6 +68,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "util": "^0.12.5",
     "vaul": "^0.9.9",
     "workbox-webpack-plugin": "^7.3.0",
     "zod": "^3.25.76"

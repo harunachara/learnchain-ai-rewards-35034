@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      events: 'events',
+      util: 'util',
     },
   },
   optimizeDeps: {
@@ -24,5 +26,6 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     'global': 'globalThis',
+    'process.env': {},
   },
 }));
